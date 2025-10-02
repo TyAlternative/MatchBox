@@ -1,0 +1,9 @@
+name: MatchBox
+version: '1.0-SNAPSHOT'
+main: me.TyAlternative.matchBox.MatchBox
+api-version: '1.21'
+depend: [ "SkinsRestorer" ]
+
+
+commands:
+  compo:
