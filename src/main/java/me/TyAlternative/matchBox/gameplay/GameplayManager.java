@@ -4,6 +4,7 @@ import me.TyAlternative.matchBox.gameplay.enums.DeathCause;
 import me.TyAlternative.matchBox.players.PlayerRoleData;
 import me.TyAlternative.matchBox.roles.RoleManager;
 import me.TyAlternative.matchBox.roles.enums.AbilityType;
+import me.TyAlternative.matchBox.roles.enums.TeamType;
 import me.TyAlternative.matchBox.states.PlayerStates;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -161,6 +162,30 @@ public class GameplayManager {
             }
         }
     }
+
+
+
+    // Vérification des conditions de victoire
+    public GameEndResult checkWinCondition() {
+        long flammeCount = roleManager.playerRoles.values().stream()
+                .filter(data -> data.isAlive() && data.getRole().getTeam() == TeamType.FLAMME)
+                .count();
+
+        long batonCount = roleManager.playerRoles.values().stream()
+                .filter(data -> data.isAlive() && data.getRole().getTeam() == TeamType.BATON)
+                .count();
+
+        if (flammeCount == 0) {
+            return new GameEndResult(true, TeamType.BATON, "Toutes les Flammes ont été éliminées!");
+        }
+
+        if (flammeCount == 1 && batonCount == 0) {
+            return new GameEndResult(true, TeamType.FLAMME, "La dernière Flamme a gagné!");
+        }
+
+        return new GameEndResult(false, null, null);
+    }
+
 
 
     // Temps restant de la phase
