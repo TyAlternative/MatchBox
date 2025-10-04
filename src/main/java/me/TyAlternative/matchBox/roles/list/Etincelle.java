@@ -33,13 +33,13 @@ public class Etincelle extends GameRole {
     }
 
     @Override
-    public boolean onRightClick(Player player, Player target) {
+    public boolean onRightClick(Player self, Player target, boolean emptyHand) {
         PlayerRoleData targetData = roleManager.getPlayerRoleData(target);
         if (targetData == null || !targetData.isAlive()) {
-            player.sendMessage("§cCible invalide!");
+            self.sendMessage("§cCible invalide!");
             return false;
         }
-        player.sendMessage("§cCible trouvé!");
+        self.sendMessage("§cCible trouvé!");
         return true;
     }
 

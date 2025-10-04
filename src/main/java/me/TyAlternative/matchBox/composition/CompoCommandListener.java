@@ -1,5 +1,6 @@
 package me.TyAlternative.matchBox.composition;
 
+import me.TyAlternative.matchBox.gameplay.GameplayManager;
 import me.TyAlternative.matchBox.roles.RoleManager;
 import me.TyAlternative.matchBox.roles.enums.Role;
 import org.bukkit.Bukkit;
@@ -28,6 +29,9 @@ public class CompoCommandListener implements CommandExecutor, TabExecutor {
                 if (args[0].equalsIgnoreCase("display")) {
                     player.sendMessage("§7-------- §eComposition §7--------");
                     CompositionManager.displayCompo(player);
+                } else if (args[0].equalsIgnoreCase("start")) {
+                    List<Player> players = new ArrayList<>(Bukkit.getOnlinePlayers());
+                    GameplayManager.getInstance().startGame(players, CompositionManager.getRoleDistribution());
                 }
 
             }

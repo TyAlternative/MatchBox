@@ -1,8 +1,6 @@
 package me.TyAlternative.matchBox.gameplay;
 import fr.skytasul.glowingentities.GlowingEntities;
-import me.TyAlternative.matchBox.Keys;
 import me.TyAlternative.matchBox.MatchBox;
-import me.TyAlternative.matchBox.PDM;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
@@ -23,11 +21,15 @@ public class HidePlayerManager {
 
     private final GlowingEntities glowingEntities = new GlowingEntities(MatchBox.getInstance());
 
+    private final Map<UUID, List<UUID>> glowingPlayerMap = new HashMap<>();
+
+    private final List<UUID> hiddenSkinPlayerList = new ArrayList<>();
+
     // Maps pour stocker les configurations
-    private Map<UUID, Map<UUID, NameTag>> nameTagConfigs = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<UUID, NameTag>> nameTagConfigs = new ConcurrentHashMap<>();
 
     // Map pour stocker les TextDisplay entities : ViewerUUID -> TargetUUID -> TextDisplay
-    private Map<UUID, Map<UUID, TextDisplay>> displayEntities = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<UUID, TextDisplay>> displayEntities = new ConcurrentHashMap<>();
 
 
     HidePlayerManager(GameplayManager gameplayManager) {
@@ -38,7 +40,7 @@ public class HidePlayerManager {
      * Configuration d'un nametag
      */
 
-    private class NameTag {
+    private static class NameTag {
         String customName;
         boolean hidden;
         boolean seeTrough;
@@ -75,7 +77,7 @@ public class HidePlayerManager {
         // Créer la nouvelle TextDisplay entity
         createDisplayEntity(viewer, target, customName);
 
-        viewer.sendMessage(ChatColor.GREEN + "✓ Nametag personnalisé: " + customName);
+//        viewer.sendMessage(ChatColor.GREEN + "✓ Nametag personnalisé: " + customName);
     }
 
     /**
@@ -96,10 +98,10 @@ public class HidePlayerManager {
         removeDisplayEntity(viewer, target);
 
         // Créer une entity avec le nom original
-        String originalName = target.getDisplayName() != null ? target.getDisplayName() : target.getName();
+        String originalName = target.getName();
         createDisplayEntity(viewer, target, originalName);
 
-        viewer.sendMessage(ChatColor.GREEN + "✓ Nametag restauré pour " + target.getName());
+//        viewer.sendMessage( "✓ Nametag restauré pour " + target.getName());
     }
 
     /**
@@ -114,10 +116,10 @@ public class HidePlayerManager {
         nameTagConfigs.computeIfAbsent(viewer.getUniqueId(), k -> new ConcurrentHashMap<>())
                 .put(target.getUniqueId(), new NameTag("", true));
 
-        // Supprimer complètement l'entity
+        // Supprimer complètement l'entité
         removeDisplayEntity(viewer, target);
 
-        viewer.sendMessage(ChatColor.GREEN + "✓ Nametag caché pour " + target.getName());
+//        viewer.sendMessage(ChatColor.GREEN + "✓ Nametag caché pour " + target.getName());
     }
 
 
@@ -162,7 +164,7 @@ public class HidePlayerManager {
                 entity.setVisibleByDefault(false); // INVISIBLE PAR DÉFAUT
 
                 // 5. Métadonnées pour identification
-                entity.setCustomName("riding_nametag_" + target.getName() + "_for_" + viewer.getName());
+                entity.customName(Component.text("riding_nametag_" + target.getName() + "_for_" + viewer.getName()));
                 entity.setCustomNameVisible(false);
             });
 
@@ -180,7 +182,7 @@ public class HidePlayerManager {
 
         } catch (Exception e) {
             MatchBox.getInstance().getLogger().warning("Erreur création TextDisplay riding: " + e.getMessage());
-            e.printStackTrace();
+
         }
     }
 
@@ -312,11 +314,10 @@ public class HidePlayerManager {
         if (player.isOnline()) {
             List<TextDisplay> ridingEntities = new ArrayList<>();
             for (org.bukkit.entity.Entity passenger : player.getPassengers()) {
-                if (passenger instanceof TextDisplay) {
-                    TextDisplay textDisplay = (TextDisplay) passenger;
+                if (passenger instanceof TextDisplay textDisplay) {
                     // Vérifier si c'est une de nos entities nametag
-                    if (textDisplay.getCustomName() != null &&
-                            textDisplay.getCustomName().contains("riding_nametag_" + player.getName())) {
+                    textDisplay.getName();
+                    if (textDisplay.getName().contains("riding_nametag_" + player.getName())) {
                         ridingEntities.add(textDisplay);
                     }
                 }
@@ -355,11 +356,7 @@ public class HidePlayerManager {
         if (entity == null || !entity.isValid()) return;
 
         try {
-            if (SeeThroughWalls) {
-                entity.setSeeThrough(true);
-            } else {
-                entity.setSeeThrough(false);
-            }
+            entity.setSeeThrough(SeeThroughWalls);
 
         } catch (Exception e) {
             MatchBox.getInstance().getLogger().warning("Erreur changement See Trough: " + e.getMessage());
@@ -385,47 +382,56 @@ public class HidePlayerManager {
 
 
     public void hidePlayerSkin(Player player) {
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "skin set steve " + player.getPlayer().getName());
-        PDM.setBool(player.getPlayer(), Keys.IS_SKIN_HIDDEN, true);
+        if (player == null) return;
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "skin set steve " + player.getName());
+        hiddenSkinPlayerList.add(player.getUniqueId());
     }
-
     public void hideAllPlayerSkin() {
-        for (UUID uuid : gameplayManager.players) {
-            Player player = Bukkit.getPlayer(uuid);
+        for (Player player : gameplayManager.getAlivePlayers()) {
             if (player == null) continue;
             hidePlayerSkin(player);
         }
     }
 
     public void showPlayerSkin(Player player) {
-        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "skin clear " + player.getPlayer().getName());
-        PDM.setBool(player.getPlayer(), Keys.IS_SKIN_HIDDEN, false);
+        if (player == null) return;
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "skin clear " + player.getName());
+        hiddenSkinPlayerList.remove(player.getUniqueId());
     }
-
     public void showAllPlayersSkin() {
-        for (UUID uuid : gameplayManager.players) {
-            Player player = Bukkit.getPlayer(uuid);
+        for (Player player : gameplayManager.getAlivePlayers()) {
             if (player == null) continue;
             showPlayerSkin(player);
         }
     }
 
+    public boolean isSkinHidden(Player player) {
+        return hiddenSkinPlayerList.contains(player.getUniqueId());
+    }
+
 
     public void makePlayerGlow(Player viewer, Player target, ChatColor color){
         try {
-            glowingEntities.setGlowing(target.getPlayer(), viewer.getPlayer(), color);
+            glowingEntities.setGlowing(target, viewer, color);
+            if (!glowingPlayerMap.get(viewer.getUniqueId()).contains(target.getUniqueId())) {
+                glowingPlayerMap.computeIfAbsent(viewer.getUniqueId(), k -> new ArrayList<>());
+                glowingPlayerMap.get(viewer.getUniqueId()).add(target.getUniqueId());
+            }
         } catch (ReflectiveOperationException e) {
             MatchBox.getInstance().getLogger().info("§cThere was a problem with GlowingEntities (setGlowing)");
         }
     }
     public void resetPlayerGlow(Player viewer, Player target){
         try {
-            glowingEntities.unsetGlowing(target.getPlayer(), viewer.getPlayer());
+            glowingEntities.unsetGlowing(target, viewer);
+            glowingPlayerMap.get(viewer.getUniqueId()).remove(target.getUniqueId());
         } catch (ReflectiveOperationException e) {
             MatchBox.getInstance().getLogger().info("§cThere was a problem with GlowingEntities (unsetGlowing)");
         }
     }
 
-
+    public boolean isPlayerGlowing(Player viewer, Player target) {
+        return glowingPlayerMap.get(viewer.getUniqueId()).contains(target.getUniqueId());
+    }
 
 }

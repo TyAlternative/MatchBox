@@ -4,36 +4,55 @@ import me.TyAlternative.matchBox.gameplay.enums.DeathCause;
 import me.TyAlternative.matchBox.players.PlayerRoleData;
 import me.TyAlternative.matchBox.roles.RoleManager;
 import me.TyAlternative.matchBox.roles.enums.AbilityType;
+import me.TyAlternative.matchBox.roles.enums.Role;
 import me.TyAlternative.matchBox.roles.enums.TeamType;
 import me.TyAlternative.matchBox.states.PlayerStates;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 
 import java.util.*;
 
 public class GameplayManager {
-    public List<UUID> players = new ArrayList<>();
-    public List<UUID> alivePlayers = new ArrayList<>();
-    private RoleManager roleManager = new RoleManager(this);
-    private HidePlayerManager hidePlayerManager = new HidePlayerManager(this);
+//    public List<UUID> players = new ArrayList<>();
+//    public List<UUID> alivePlayers = new ArrayList<>();
+    private final RoleManager roleManager = new RoleManager(this);
+    private final HidePlayerManager hidePlayerManager = new HidePlayerManager(this);
 
+
+    private static final GameplayManager instance = new GameplayManager();
+
+    public static GameplayManager getInstance() {
+        return instance;
+    }
 
     public long gameplayPhaseEndTime;
+    public long votePhaseEndTime;
 
 
 
+    public void startGame(List<Player> players, Map<Role, Integer> roleDistribution) {
+        roleManager.distributeRoles(players, roleDistribution);
+        startGameplayPhase();
+    }
 
-    public void startGameplayPhase(int durationSeconds) {
+
+    public void startGameplayPhase() {
         roleManager.embrasedPlayers.clear();
         roleManager.protectedPlayers.clear();
-        gameplayPhaseEndTime = System.currentTimeMillis() + (durationSeconds * 1000L);
 
+        int phaseDurationInSeconds = 30;
+        gameplayPhaseEndTime = System.currentTimeMillis() + (phaseDurationInSeconds * 1000L);
+
+        // On parcourt tous les joueurs
         for (PlayerRoleData data : roleManager.playerRoles.values()) {
             if (data.isAlive()) {
-                Player p = Bukkit.getPlayer(data.getPlayerId());
-                if (p != null) {
-                    data.getRole().onGameplayPhaseStart(p);
+                Player player = Bukkit.getPlayer(data.getPlayerId());
+                if (player != null) {
+                    // Call le hook de debut de phase de Gameplay.
+                    data.getRole().onGameplayPhaseStart(player);
                 }
             }
         }
@@ -42,17 +61,60 @@ public class GameplayManager {
 
 
     public void endGameplayPhase() {
-        // Appeler les hooks de fin de phase
+        // On parcourt tous les joueurs
         for (PlayerRoleData data : roleManager.playerRoles.values()) {
             if (data.isAlive()) {
-                Player p = Bukkit.getPlayer(data.getPlayerId());
-                if (p != null) {
-                    data.getRole().onGameplayPhaseEnd(p);
+                Player player = Bukkit.getPlayer(data.getPlayerId());
+                if (player != null) {
+                    // Call le hook de fin de phase de Gameplay.
+                    data.getRole().onGameplayPhaseEnd(player);
                 }
             }
         }
 
         checkDeath();
+
+        startVotePhase();
+    }
+
+    public void startVotePhase() {
+        int phaseDurationInSeconds = 30;
+        votePhaseEndTime = System.currentTimeMillis() + (phaseDurationInSeconds * 1000L);
+
+        // On parcourt tous les joueurs
+        for (PlayerRoleData data : roleManager.playerRoles.values()) {
+            if (data.isAlive()) {
+                Player player = Bukkit.getPlayer(data.getPlayerId());
+                if (player != null) {
+                    // Call le hook de debut de phase de Vote.
+                    data.getRole().onVotePhaseStart(player);
+
+                    // Modifie les attributs du joueur pour qu'il puisse plus facilement voter
+                    AttributeInstance attribute = player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
+                    if (attribute != null) attribute.setBaseValue(20.0D);
+                }
+            }
+        }
+    }
+
+    public void endVotePhase() {
+        // On parcourt tous les joueurs
+        for (PlayerRoleData data : roleManager.playerRoles.values()) {
+            if (data.isAlive()) {
+                Player player = Bukkit.getPlayer(data.getPlayerId());
+                if (player != null) {
+                    // Call le hook de fin de phase de Vote.
+                    data.getRole().onVotePhaseEnd(player);
+
+
+                    // Modifie les attributs du joueur pour qu'il puisse normalement jouer la partie.
+                    AttributeInstance attribute = player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
+                    if (attribute != null) attribute.setBaseValue(3.0D);
+                }
+            }
+        }
+
+        startGameplayPhase();
     }
 
 
@@ -62,7 +124,7 @@ public class GameplayManager {
         Map<UUID,DeathCause> toEliminate = new HashMap<>();
 
         // On parcourt chaque joueur en vie
-        for (UUID embrasedId : alivePlayers) {
+        for (UUID embrasedId : getAlivePlayersUUID()) {
             // On récupère son role
             PlayerRoleData data = roleManager.playerRoles.get(embrasedId);
 
@@ -138,15 +200,14 @@ public class GameplayManager {
             data.getRole().onPlayerElimination(eliminated, deathCause);
             eliminated.sendMessage("§cVous avez été éliminé!");
             eliminated.setGameMode(GameMode.SPECTATOR);
-            alivePlayers.remove(playerId);
 
             // Notification aux autres joueurs (sans révéler le rôle)
             String eliminationType = switch (deathCause) {
                 case ETINCELLE,TORCHE -> "§cEmbrasé";
                 case VOTE -> "§baux Votes";
             };
-            for (UUID uuid : players) {
-                Player player = Bukkit.getPlayer(uuid);
+            for (PlayerRoleData otherData : roleManager.playerRoles.values()) {
+                Player player = otherData.getPlayer();
                 if (player == null) continue;
                 player.sendMessage("§e" + eliminated.getName() + "§7 a été éliminé " + eliminationType + "!");
             }
@@ -192,13 +253,71 @@ public class GameplayManager {
     public long getRemainingGameplayTimeInMillis() {
         return Math.max(0, gameplayPhaseEndTime - System.currentTimeMillis());
     }
+    // Temps restant de la phase
+    public long getRemainingVoteTimeInMillis() {
+        return Math.max(0, votePhaseEndTime - System.currentTimeMillis());
+    }
 
 
-    public String getFormattedRemainingTime() {
+    public String getFormattedRemainingGameplayTime() {
         long millis = getRemainingGameplayTimeInMillis();
         long seconds = millis / 1000;
         long minutes = seconds / 60;
         seconds = seconds % 60;
         return String.format("%02d:%02d", minutes, seconds);
+    }
+
+
+    public String getFormattedRemainingVoteTime() {
+        long millis = getRemainingVoteTimeInMillis();
+        long seconds = millis / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+
+
+
+    public PlayerRoleData getPlayerRoleData(Player player) {
+        return roleManager.getPlayerRoleData(player);
+    }
+
+    public List<Player> getPlayers() {
+        List<Player> players = new ArrayList<>();
+        for (PlayerRoleData playerRoleData : roleManager.playerRoles.values()) {
+            Player player = playerRoleData.getPlayer();
+            if (player != null) players.add(player);
+        }
+        return players;
+    }
+
+    public List<UUID> getPlayersUUID() {
+        List<UUID> players = new ArrayList<>();
+        for (PlayerRoleData playerRoleData : roleManager.playerRoles.values()) {
+            Player player = playerRoleData.getPlayer();
+            if (player != null) players.add(player.getUniqueId());
+        }
+        return players;
+    }
+
+    public List<Player> getAlivePlayers() {
+        List<Player> players = new ArrayList<>();
+        for (PlayerRoleData playerRoleData : roleManager.playerRoles.values()) {
+            if (playerRoleData != null && playerRoleData.isAlive()) {
+                Player player = playerRoleData.getPlayer();
+                if (player != null) players.add(player);
+            }
+        }
+        return players;
+    }
+    public List<UUID> getAlivePlayersUUID() {
+        List<UUID> players = new ArrayList<>();
+        for (PlayerRoleData playerRoleData : roleManager.playerRoles.values()) {
+            if (playerRoleData != null && playerRoleData.isAlive()) {
+                Player player = playerRoleData.getPlayer();
+                if (player != null) players.add(player.getUniqueId());
+            }
+        }
+        return players;
     }
 }

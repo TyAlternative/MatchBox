@@ -61,10 +61,22 @@ public abstract class GameRole {
 
 
     // Interactions avec clic droit
-    public boolean onRightClick(Player player, Player target) { return false; }
+    public boolean onRightClick(Player self, Player target, boolean emptyHand) { return false; }
+
+
+    // Interactions avec clic gauche
+    public boolean onLeftClick(Player self, Player target, boolean emptyHand) { return false; }
+
+
+
+    // A été clic droit
+    public boolean rightClickedOn(Player self, Player target, boolean emptyHand) { return false; }
+
+    // A été clic gauche
+    public boolean leftClickedOn(Player self, Player target, boolean emptyHand) { return false; }
 
     // Interactions avec Swap Hand
-    public boolean onSwapHand(Player player) { return false; }
+    public boolean onSwapHand(Player self) { return false; }
 
     public boolean hasAbility(AbilityType type) { return false; }
 

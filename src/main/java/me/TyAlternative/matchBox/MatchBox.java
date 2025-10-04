@@ -2,6 +2,7 @@ package me.TyAlternative.matchBox;
 
 import me.TyAlternative.matchBox.composition.CompoCommandListener;
 import me.TyAlternative.matchBox.composition.CompositionGUI;
+import me.TyAlternative.matchBox.players.listeners.PlayersListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class MatchBox extends JavaPlugin {
@@ -12,6 +13,7 @@ public final class MatchBox extends JavaPlugin {
         getCommand("compo").setExecutor(new CompoCommandListener());
 
         getServer().getPluginManager().registerEvents(new CompositionGUI(), this);
+        getServer().getPluginManager().registerEvents(new PlayersListener(), this);
 
     }
 

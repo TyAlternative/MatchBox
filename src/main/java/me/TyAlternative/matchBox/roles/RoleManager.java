@@ -62,7 +62,7 @@ public class RoleManager {
     }
 
     // Distribution aléatoire des rôles
-    public void distributeRoles(List<Player> players, Map<Role, Integer> roleDistribution) {
+    public boolean distributeRoles(List<Player> players, Map<Role, Integer> roleDistribution) {
         List<Role> rolesToAssign = new ArrayList<>();
 
         for (Map.Entry<Role, Integer> entry : roleDistribution.entrySet()) {
@@ -74,7 +74,7 @@ public class RoleManager {
 
         if (rolesToAssign.size() != players.size()) {
             plugin.getLogger().warning("Nombre de rôles != nombre de joueurs!");
-            return;
+            return false;
         }
 
         Collections.shuffle(rolesToAssign);
@@ -83,6 +83,7 @@ public class RoleManager {
         for (int i = 0; i < players.size(); i++) {
             assignRole(players.get(i), rolesToAssign.get(i));
         }
+        return true;
     }
 
 
