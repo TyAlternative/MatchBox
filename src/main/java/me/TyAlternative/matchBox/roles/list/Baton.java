@@ -13,8 +13,8 @@ public class Baton  extends GameRole {
 
     @Override
     public void onRoleAssigned(Player self) {
-        self.sendMessage("§8---------------------------------------------------------");
+        self.sendMessage("§8-------------------------------------------------");
         self.sendMessage("§e[Boite d'Allumettes] §7Vous etes " + getDisplayName() + "§!\n" + getDescription());
-        self.sendMessage("§8---------------------------------------------------------");
+        self.sendMessage("§8-------------------------------------------------");
     }
 }

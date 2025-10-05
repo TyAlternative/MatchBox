@@ -4,6 +4,7 @@ import me.TyAlternative.matchBox.gameplay.enums.DeathCause;
 import me.TyAlternative.matchBox.roles.enums.AbilityType;
 import me.TyAlternative.matchBox.roles.enums.Role;
 import me.TyAlternative.matchBox.roles.enums.TeamType;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -83,5 +84,12 @@ public abstract class GameRole {
     public List<AbilityType> getAbilities() { return new ArrayList<>(); }
 
 
+
+
+
+    // Aide au formatage de text.
+    public Component getSpecialAbilityKeyBind() {
+        return Component.keybind("key.swapOffhand");
+    }
 
 }

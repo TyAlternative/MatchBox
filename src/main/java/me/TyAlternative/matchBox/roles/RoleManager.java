@@ -55,7 +55,7 @@ public class RoleManager {
 
         // On appelle le hook correspondant à l'assignation du role.
         role.onRoleAssigned(player);
-        if (debugComment) plugin.getLogger().info("Le rôle " + data.getRole().getDisplayName() + "assigné à " + data.getPlayer().getName() + ".");
+        if (debugComment) plugin.getLogger().info("Le rôle " + data.getRole().getDisplayName() + " a été assigné à " + data.getPlayer().getName() + ".");
 
         // TEXT ANNONCENT LE ROLE DONNE!
 
