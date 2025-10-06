@@ -139,7 +139,13 @@ public class RoleManager {
 
 
 
+    public void resetRound() {
+//        playerRoles.clear();
+        embrasedPlayers.clear();
+        protectedPlayers.clear();
+    }
     public void reset() {
+        registeredRoles.clear();
         playerRoles.clear();
         embrasedPlayers.clear();
         protectedPlayers.clear();

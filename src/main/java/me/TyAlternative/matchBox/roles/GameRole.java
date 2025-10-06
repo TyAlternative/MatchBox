@@ -38,6 +38,10 @@ public abstract class GameRole {
     public void setIsDrunk(boolean value) { isDrunk = value; }
 
 
+    public void printRoleDescription(Player self) {}
+
+
+
     // Hooks pour les événements
     /** Hook qui detect quand le joueur reçoit son role. */
     public void onRoleAssigned(Player self) {}

@@ -1,23 +1,27 @@
 package me.TyAlternative.matchBox.gameplay;
 
+import me.TyAlternative.matchBox.MatchBox;
 import me.TyAlternative.matchBox.gameplay.enums.DeathCause;
+import me.TyAlternative.matchBox.gameplay.enums.GamePhase;
 import me.TyAlternative.matchBox.players.PlayerRoleData;
 import me.TyAlternative.matchBox.roles.RoleManager;
 import me.TyAlternative.matchBox.roles.enums.AbilityType;
 import me.TyAlternative.matchBox.roles.enums.Role;
 import me.TyAlternative.matchBox.roles.enums.TeamType;
 import me.TyAlternative.matchBox.states.PlayerStates;
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
+import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 
 public class GameplayManager {
 //    public List<UUID> players = new ArrayList<>();
 //    public List<UUID> alivePlayers = new ArrayList<>();
+    private final MatchBox matchBox = MatchBox.getInstance();
     private final RoleManager roleManager = new RoleManager(this);
     private final HidePlayerManager hidePlayerManager = new HidePlayerManager(this);
 
@@ -30,7 +34,11 @@ public class GameplayManager {
 
     public long gameplayPhaseEndTime;
     public long votePhaseEndTime;
+    public GamePhase gamePhase = GamePhase.NOT_STARTED;
+    private BukkitTask timePhaseTask;
 
+
+    private final List<Location> placedSignLocations = new ArrayList<>();
 
 
     public void startGame(List<Player> players, Map<Role, Integer> roleDistribution) {
@@ -38,24 +46,49 @@ public class GameplayManager {
         startGameplayPhase();
     }
 
+    public void endGame(GameEndResult gameEndResult) {
+        for (Player player : getPlayers()) {
+            player.sendMessage("§e[Boite d'Allumettes] §7" + gameEndResult.getMessage());
+        }
+
+        hidePlayerManager.showAllPlayersSkin();
+        hidePlayerManager.showAllPlayersNametag();
+
+        resetGame();
+    }
+
 
     public void startGameplayPhase() {
-        roleManager.embrasedPlayers.clear();
-        roleManager.protectedPlayers.clear();
+        roleManager.resetRound();
 
+        hidePlayerManager.hideAllPlayerSkin();
+        hidePlayerManager.hideAllPlayersNametag();
+
+        gamePhase = GamePhase.GAMEPLAY;
         int phaseDurationInSeconds = 30;
         gameplayPhaseEndTime = System.currentTimeMillis() + (phaseDurationInSeconds * 1000L);
 
         // On parcourt tous les joueurs
         for (PlayerRoleData data : roleManager.playerRoles.values()) {
+            Player player = Bukkit.getPlayer(data.getPlayerId());
+            if (player == null) continue;
+            givePlayerStartItem(player, data);
+
             if (data.isAlive()) {
-                Player player = Bukkit.getPlayer(data.getPlayerId());
-                if (player != null) {
-                    // Call le hook de debut de phase de Gameplay.
-                    data.getRole().onGameplayPhaseStart(player);
-                }
+                // Call le hook de debut de phase de Gameplay.
+                data.getRole().onGameplayPhaseStart(player);
             }
+
+            player.sendMessage("§e[Boite d'Allumettes] §7Début de la phase de §bGameplay!");
         }
+
+
+
+        timePhaseTask = Bukkit.getScheduler().runTaskLater(matchBox, () -> {
+
+            endGameplayPhase();
+
+        },phaseDurationInSeconds * 20L);
     }
 
 
@@ -72,29 +105,54 @@ public class GameplayManager {
             }
         }
 
+
         checkDeath();
 
-        startVotePhase();
+
+        breakEveryPlacedSign();
+
+        GameEndResult gameEndResult = checkWinCondition();
+        if (gameEndResult.hasGameEnded()) {
+            endGame(gameEndResult);
+        } else {
+            startVotePhase();
+        }
     }
 
     public void startVotePhase() {
+
+        gamePhase = GamePhase.VOTE;
         int phaseDurationInSeconds = 30;
         votePhaseEndTime = System.currentTimeMillis() + (phaseDurationInSeconds * 1000L);
 
+        hidePlayerManager.showAllPlayersSkin();
+        hidePlayerManager.showAllPlayersNametag();
+
         // On parcourt tous les joueurs
         for (PlayerRoleData data : roleManager.playerRoles.values()) {
+            Player player = Bukkit.getPlayer(data.getPlayerId());
+            if (player == null) continue;
             if (data.isAlive()) {
-                Player player = Bukkit.getPlayer(data.getPlayerId());
-                if (player != null) {
-                    // Call le hook de debut de phase de Vote.
-                    data.getRole().onVotePhaseStart(player);
+                player.getInventory().clear();
+                // Call le hook de debut de phase de Vote.
+                data.getRole().onVotePhaseStart(player);
 
-                    // Modifie les attributs du joueur pour qu'il puisse plus facilement voter
-                    AttributeInstance attribute = player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
-                    if (attribute != null) attribute.setBaseValue(20.0D);
-                }
+                // Modifie les attributs du joueur pour qu'il puisse plus facilement voter
+                AttributeInstance attribute = player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
+                if (attribute != null) attribute.setBaseValue(20.0D);
             }
+
+            player.sendMessage("§e[Boite d'Allumettes] §7Début de la phase de §dVote!");
         }
+
+
+
+        timePhaseTask = Bukkit.getScheduler().runTaskLater(matchBox, () -> {
+
+            endVotePhase();
+
+
+        },phaseDurationInSeconds * 20L);
     }
 
     public void endVotePhase() {
@@ -114,9 +172,47 @@ public class GameplayManager {
             }
         }
 
-        startGameplayPhase();
+        checkVote();
+
+        GameEndResult gameEndResult = checkWinCondition();
+        if (gameEndResult.hasGameEnded()) {
+            endGame(gameEndResult);
+        } else {
+            startGameplayPhase();
+        }
+
     }
 
+    public void skipCurrentPhase() {
+        timePhaseTask.cancel();switch (gamePhase) {
+            case GAMEPLAY -> endGameplayPhase();
+            case VOTE -> endVotePhase();
+        }
+    }
+
+
+    public void givePlayerStartItem(Player player, PlayerRoleData data) {
+
+        ItemStack signs = new ItemStack(Material.OAK_SIGN);
+        signs.setAmount(16);
+        player.getInventory().setItem(0,signs);
+
+        ItemStack axe = new ItemStack(Material.NETHERITE_AXE);
+        player.getInventory().setItem(1,axe);
+
+        ItemStack spyglass = new ItemStack(Material.SPYGLASS);
+        player.getInventory().setItem(8,spyglass);
+
+        ItemStack crossbow = new ItemStack(Material.CROSSBOW);
+        player.getInventory().setItem(7,crossbow);
+
+        int remainingSpectralArrow = data.getRemainingSpectralArrow();
+        if (remainingSpectralArrow > 0 ) {
+            ItemStack arrows = new ItemStack(Material.SPECTRAL_ARROW);
+            signs.setAmount(remainingSpectralArrow);
+            player.getInventory().setItem(6, arrows);
+        }
+    }
 
 
     public void checkDeath() {
@@ -187,6 +283,19 @@ public class GameplayManager {
 
     }
 
+    public void resetPlayersVote() {
+        for (Player alivePlayer : getAlivePlayers()) {
+            PlayerRoleData data = getPlayerRoleData(alivePlayer);
+            if (data == null) continue;
+            data.unvotePlayer();
+        }
+    }
+
+
+    public void checkVote() {
+        resetPlayersVote();
+
+    }
 
     // Élimination d'un joueur
     public void eliminatePlayer(UUID playerId, DeathCause deathCause) {
@@ -236,17 +345,40 @@ public class GameplayManager {
                 .filter(data -> data.isAlive() && data.getRole().getTeam() == TeamType.BATON)
                 .count();
 
+        GameEndResult gameEndResult = null;
         if (flammeCount == 0) {
-            return new GameEndResult(true, TeamType.BATON, "Toutes les Flammes ont été éliminées!");
+            gameEndResult = new GameEndResult(true, TeamType.BATON, "Toutes les Flammes ont été éliminées!");
         }
 
         if (flammeCount == 1 && batonCount == 0) {
-            return new GameEndResult(true, TeamType.FLAMME, "La dernière Flamme a gagné!");
+            gameEndResult = new GameEndResult(true, TeamType.FLAMME, "La dernière Flamme a gagné!");
         }
 
-        return new GameEndResult(false, null, null);
+        if (gameEndResult == null) {
+            gameEndResult = new GameEndResult(false, null, null);
+        }
+
+        return gameEndResult;
     }
 
+
+    public void discoverPlayerBySpectralArrow(Player target) {
+        for (Player viewer : getAlivePlayers()) {
+            hidePlayerManager.sendCustomNameTag(viewer, target, target.getName());
+        }
+    }
+
+
+
+    public void resetGame() {
+        gamePhase = GamePhase.NOT_STARTED;
+
+        if (!timePhaseTask.isCancelled()) {
+            timePhaseTask.cancel();
+        }
+
+        roleManager.reset();
+    }
 
 
     // Temps restant de la phase
@@ -261,15 +393,20 @@ public class GameplayManager {
 
     public String getFormattedRemainingGameplayTime() {
         long millis = getRemainingGameplayTimeInMillis();
+        if (millis == 0) {
+            return "Terminée";
+        }
         long seconds = millis / 1000;
         long minutes = seconds / 60;
         seconds = seconds % 60;
         return String.format("%02d:%02d", minutes, seconds);
     }
-
 
     public String getFormattedRemainingVoteTime() {
         long millis = getRemainingVoteTimeInMillis();
+        if (millis == 0) {
+            return "Terminée";
+        }
         long seconds = millis / 1000;
         long minutes = seconds / 60;
         seconds = seconds % 60;
@@ -277,6 +414,26 @@ public class GameplayManager {
     }
 
 
+    public void addPlacedSignLocation(Location location) {
+        placedSignLocations.add(location);
+    }
+    public void removePlacedSignLocation(Location location) {
+        placedSignLocations.remove(location);
+    }
+    public boolean hasPlacedSignLocation(Location location) {
+        return placedSignLocations.contains(location);
+    }
+    public List<Location> getPlacedSignLocation() {
+        return placedSignLocations;
+    }
+
+    public void breakEveryPlacedSign() {
+        for (Location placedSignLocation : placedSignLocations) {
+            placedSignLocation.getBlock().setType(Material.AIR);
+
+        }
+        placedSignLocations.clear();
+    }
 
     public PlayerRoleData getPlayerRoleData(Player player) {
         return roleManager.getPlayerRoleData(player);
@@ -319,5 +476,12 @@ public class GameplayManager {
             }
         }
         return players;
+    }
+
+    public void makePlayerGlow(Player viewer, Player target, ChatColor color) {
+        hidePlayerManager.makePlayerGlow(viewer, target, color);
+    }
+    public void resetPlayerGlow(Player viewer, Player target) {
+        hidePlayerManager.resetPlayerGlow(viewer, target);
     }
 }

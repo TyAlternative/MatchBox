@@ -11,6 +11,7 @@ public final class MatchBox extends JavaPlugin {
     public void onEnable() {
         // Plugin startup logic
         getCommand("compo").setExecutor(new CompoCommandListener());
+        getCommand("matchBox").setExecutor(new MatchBoxCommand());
 
         getServer().getPluginManager().registerEvents(new CompositionGUI(), this);
         getServer().getPluginManager().registerEvents(new PlayersListener(), this);

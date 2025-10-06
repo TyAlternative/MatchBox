@@ -32,19 +32,7 @@ public class Etincelle extends GameRole {
     }
 
     @Override
-    public void onRoleAssigned(Player self) {
-//        self.sendMessage("""
-//                §8§m§l----------§r§8§l / Role / §m----------
-//                §l
-//                §r§8§l- §r§7Vous êtes §c§nL'Etincelle
-//                §r§8§l- §r§7Objectif : §rVous êtes le traître de la partie. Embrasez tous les autres §eBâtons§f et gagner seul.
-//                §l
-//                §r§8§l- §r§7Pour ce faire vous disposez de trois capacitées:
-//                §6§n§lEmbrasement:§r§f A chaque phase de Gameplay, vous pouvez click droit sur un joueur avec une main vide. Ce dernier sera éliminé à la fin de cette phase. §8(Actif)
-//                §6§n§lPoudre de cheminée:§r§f Vous pouvez échanger votre position avec celle d'un autre joueur toutes les 20 secondes. §8(Actif) §6§l(""" + getSpecialAbilityKeyBind() + """
-//                )
-//                §6§n§lClairvoyance:§r§f Vous connaissez la durée restante de la phase de Gameplay en cours. §8(Passif)
-//                §l""");
+    public void printRoleDescription(Player self) {
         self.sendMessage(Component.text("§8§m§l----------§r§8§l / Role / §m----------").appendNewline()
                 .appendNewline()
                 .append(Component.text("§r§8§l- §r§7Vous êtes §c§nL'Etincelle")).appendNewline()
@@ -56,7 +44,11 @@ public class Etincelle extends GameRole {
                 .append(Component.text("§6§n§lClairvoyance:§r§f Vous connaissez la durée restante de la phase de Gameplay en cours. §8(Passif)")).appendNewline()
                 .appendNewline()
         );
+    }
 
+    @Override
+    public void onRoleAssigned(Player self) {
+        printRoleDescription(self);
     }
 
     @Override

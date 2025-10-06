@@ -1,8 +1,10 @@
 package me.TyAlternative.matchBox.players;
 
+import me.TyAlternative.matchBox.gameplay.GameplayManager;
 import me.TyAlternative.matchBox.roles.GameRole;
 import me.TyAlternative.matchBox.states.PlayerStates;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -15,6 +17,11 @@ public class PlayerRoleData {
     private PlayerStates playerStates;
     private int remainingSpectralArrow;
     private Map<String, Object> customData;
+    
+    public boolean canVote = true;
+    public int voteWeight = 1;
+    public boolean alreadyVote = false;
+    public Player votedPlayer = null;
 
     public PlayerRoleData(UUID playerId, GameRole role) {
         this.playerId = playerId;
@@ -36,10 +43,41 @@ public class PlayerRoleData {
 
     public int getRemainingSpectralArrow() { return remainingSpectralArrow; }
     public void setRemainingSpectralArrow(int newValue) { this.remainingSpectralArrow = newValue; }
+    public void removeOneSpectralArrow() { this.remainingSpectralArrow--; }
+    public void addOneSpectralArrow() { this.remainingSpectralArrow++; }
 
     public void setCustomData(String key, Object value) { customData.put(key, value); }
     public Object getCustomData(String key) { return customData.get(key); }
 
 
+    public void votePlayer(Player clickedPlayer) {
+        if (!canVote || clickedPlayer == null) return;
+        else if (this.votedPlayer == clickedPlayer) return;
+        else if (this.votedPlayer != null) unvotePlayer();
+
+
+        this.votedPlayer = clickedPlayer;
+        GameplayManager.getInstance().makePlayerGlow(getPlayer(), clickedPlayer, ChatColor.YELLOW);
+    }
+    public void unvotePlayer() {
+        if (!canVote || this.votedPlayer == null) return;
+
+        GameplayManager.getInstance().resetPlayerGlow(getPlayer(), this.votedPlayer);
+        this.votedPlayer = null;
+
+    }
+    
+    public void clickVote(Player clickedPlayer) {
+
+        Player previousClickedPlayer = this.votedPlayer;
+        if (clickedPlayer == null) return;
+        if (previousClickedPlayer == clickedPlayer) {
+            getPlayer().sendMessage("§e[Boite d'Allumettes] §7Vous avez retiré votre vote contre §e" + clickedPlayer.getName());
+            unvotePlayer();
+        } else {
+            getPlayer().sendMessage("§e[Boite d'Allumettes] §7Vous avez voté contre §e" + clickedPlayer.getName());
+            votePlayer(clickedPlayer);
+        }
+    }
 
 }

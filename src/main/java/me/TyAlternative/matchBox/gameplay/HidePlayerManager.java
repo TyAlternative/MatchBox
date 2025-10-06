@@ -9,6 +9,8 @@ import org.bukkit.Location;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
@@ -380,6 +382,38 @@ public class HidePlayerManager {
     }
 
 
+    public void hideAllPlayersNametag() {
+        for (Player viewer : gameplayManager.getAlivePlayers()) {
+            Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+            Team team = scoreboard.getTeam("hidden");
+            if (team == null) {
+                team = scoreboard.registerNewTeam("hidden");
+            }
+            team.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+            team.addEntry(viewer.getName()); // player is an org.bukkit.entity.Player
+
+            for (Player target : gameplayManager.getAlivePlayers()) {
+//                if (viewer == target) continue;
+                hideNameTag(viewer, target);
+            }
+        }
+    }
+    public void showAllPlayersNametag() {
+        for (Player viewer : gameplayManager.getAlivePlayers()) {
+            Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+            Team team = scoreboard.getTeam("hidden");
+            if (team == null) {
+                team = scoreboard.registerNewTeam("hidden");
+            }
+            team.removeEntry(viewer.getName()); // player is an org.bukkit.entity.Player
+
+            for (Player target : gameplayManager.getAlivePlayers()) {
+//                if (viewer == target) continue;
+                hideNameTag(viewer, target);
+            }
+        }
+    }
+
 
     public void hidePlayerSkin(Player player) {
         if (player == null) return;
@@ -413,10 +447,10 @@ public class HidePlayerManager {
     public void makePlayerGlow(Player viewer, Player target, ChatColor color){
         try {
             glowingEntities.setGlowing(target, viewer, color);
-            if (!glowingPlayerMap.get(viewer.getUniqueId()).contains(target.getUniqueId())) {
-                glowingPlayerMap.computeIfAbsent(viewer.getUniqueId(), k -> new ArrayList<>());
-                glowingPlayerMap.get(viewer.getUniqueId()).add(target.getUniqueId());
-            }
+//            if (!glowingPlayerMap.get(viewer.getUniqueId()).contains(target.getUniqueId())) {
+//                glowingPlayerMap.computeIfAbsent(viewer.getUniqueId(), k -> new ArrayList<>());
+//                glowingPlayerMap.get(viewer.getUniqueId()).add(target.getUniqueId());
+//            }
         } catch (ReflectiveOperationException e) {
             MatchBox.getInstance().getLogger().info("§cThere was a problem with GlowingEntities (setGlowing)");
         }
@@ -424,14 +458,14 @@ public class HidePlayerManager {
     public void resetPlayerGlow(Player viewer, Player target){
         try {
             glowingEntities.unsetGlowing(target, viewer);
-            glowingPlayerMap.get(viewer.getUniqueId()).remove(target.getUniqueId());
+//            glowingPlayerMap.get(viewer.getUniqueId()).remove(target.getUniqueId());
         } catch (ReflectiveOperationException e) {
             MatchBox.getInstance().getLogger().info("§cThere was a problem with GlowingEntities (unsetGlowing)");
         }
     }
 
-    public boolean isPlayerGlowing(Player viewer, Player target) {
-        return glowingPlayerMap.get(viewer.getUniqueId()).contains(target.getUniqueId());
-    }
+//    public boolean isPlayerGlowing(Player viewer, Player target) {
+//        return glowingPlayerMap.get(viewer.getUniqueId()).contains(target.getUniqueId());
+//    }
 
 }

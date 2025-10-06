@@ -1,6 +1,8 @@
 me\TyAlternative\matchBox\gameplay\GameEndResult.class
 me\TyAlternative\matchBox\Keys.class
+me\TyAlternative\matchBox\MatchBoxCommand.class
 me\TyAlternative\matchBox\roles\enums\Role.class
+me\TyAlternative\matchBox\gameplay\enums\GamePhase.class
 me\TyAlternative\matchBox\roles\RoleManager.class
 me\TyAlternative\matchBox\MatchBox.class
 me\TyAlternative\matchBox\roles\list\Cendre.class
@@ -15,7 +17,6 @@ me\TyAlternative\matchBox\roles\list\Etincelle.class
 me\TyAlternative\matchBox\gameplay\HidePlayerManager.class
 me\TyAlternative\matchBox\PDM.class
 me\TyAlternative\matchBox\roles\list\Souffle.class
-me\TyAlternative\matchBox\players\listeners\PlayersListener$1.class
 me\TyAlternative\matchBox\players\listeners\PlayersListener.class
 me\TyAlternative\matchBox\roles\list\Aurore.class
 me\TyAlternative\matchBox\composition\CompositionGUI.class
